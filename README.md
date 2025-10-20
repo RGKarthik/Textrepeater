@@ -1,22 +1,22 @@
 # Text Repeater
 
-A simple web application that takes user input (name and message) and stores it in an Azure SQL Database. The app displays all stored messages in real-time.
+A simple web application that takes user input (name and message) and stores it in a MySQL database. The app displays all stored messages in real-time.
 
 ## Features
 
 - **Simple Form Interface**: Two input fields for name and message
-- **Database Storage**: All data is stored in Azure SQL Database
+- **Database Storage**: All data is stored in MySQL database
 - **Real-time Display**: Shows all stored messages with timestamps
-- **Azure Ready**: Configured for Azure Web App deployment
+- **Azure Ready**: Configured for Azure Web App deployment with multiple MySQL hosting options
 - **Responsive Design**: Works on desktop and mobile devices
 - **RESTful API**: Clean API endpoints for data operations
 
 ## Technology Stack
 
 - **Backend**: Node.js with Express.js
-- **Database**: Azure SQL Database (using mssql driver)
+- **Database**: MySQL (supports Azure Database for MySQL, AWS RDS, Google Cloud SQL, local MySQL)
 - **Frontend**: Vanilla HTML, CSS, and JavaScript
-- **Deployment**: Azure Web App with Azure SQL Database
+- **Deployment**: Azure Web App with MySQL database
 
 ## Project Structure
 
@@ -40,7 +40,7 @@ textrepeater/
 ### Prerequisites
 
 - Node.js 18+ installed
-- Azure SQL Database instance (or SQL Server for testing)
+- MySQL database (local installation, Azure Database for MySQL, AWS RDS, or Google Cloud SQL)
 
 ### Setup
 
@@ -74,10 +74,12 @@ Create a `.env` file with the following variables:
 ```env
 NODE_ENV=development
 PORT=3000
-DB_SERVER=your-azure-sql-server.database.windows.net
-DB_NAME=your-database-name
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=textrepeater_db
 DB_USER=your-username
 DB_PASSWORD=your-password
+DB_SSL=false
 ```
 
 ## API Endpoints
@@ -153,43 +155,54 @@ Health check endpoint.
 The application creates a `messages` table with the following structure:
 
 ```sql
-CREATE TABLE messages (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    name NVARCHAR(255) NOT NULL,
-    message NVARCHAR(MAX) NOT NULL,
-    created_at DATETIME2 DEFAULT GETDATE()
-);
+CREATE TABLE IF NOT EXISTS messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-## Azure Deployment
+## Database Deployment
 
-For detailed deployment instructions, see [AZURE_DEPLOYMENT.md](./AZURE_DEPLOYMENT.md).
+For detailed MySQL deployment instructions, see [MYSQL_DEPLOYMENT.md](./MYSQL_DEPLOYMENT.md).
+
+### MySQL Hosting Options:
+
+1. **Azure Database for MySQL** (Recommended for Azure Web App)
+2. **AWS RDS MySQL**
+3. **Google Cloud SQL MySQL**
+4. **Local MySQL** (Development)
 
 ### Quick Deployment Steps:
 
-1. **Create Azure SQL Database**
+1. **Create MySQL Database** (choose from options above)
 2. **Create Azure Web App** (Node.js 18 LTS)
-3. **Configure Application Settings** with database connection details
+3. **Configure Application Settings** with MySQL connection details
 4. **Deploy the code** via Git, GitHub, or ZIP upload
 
 ### Required Azure Application Settings:
 
 ```
 NODE_ENV=production
-DB_SERVER=your-server.database.windows.net
-DB_NAME=your-database-name
+DB_HOST=your-mysql-host
+DB_PORT=3306
+DB_NAME=textrepeater_db
 DB_USER=your-username
 DB_PASSWORD=your-password
+DB_SSL=true
 ```
 
 ## Security Features
 
 - **Input Validation**: Server-side validation for all inputs
-- **SQL Injection Prevention**: Parameterized queries using mssql driver
+- **SQL Injection Prevention**: Parameterized queries using mysql2 driver
 - **XSS Protection**: HTML escaping on frontend
 - **Helmet.js**: Security headers for Express
 - **CORS**: Configured for secure cross-origin requests
 - **Environment Variables**: Sensitive data stored in environment variables
+- **SSL Support**: Configurable SSL connections for cloud databases
 
 ## Monitoring and Logging
 
@@ -212,6 +225,6 @@ This project is licensed under the ISC License.
 
 ## Support
 
-- For deployment issues, see [AZURE_DEPLOYMENT.md](./AZURE_DEPLOYMENT.md)
+- For deployment issues, see [MYSQL_DEPLOYMENT.md](./MYSQL_DEPLOYMENT.md)
 - For application issues, check the server logs
-- For Azure-specific questions, consult [Azure Documentation](https://docs.microsoft.com/en-us/azure/)
+- For MySQL-specific questions, consult [MySQL Documentation](https://dev.mysql.com/doc/)

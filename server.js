@@ -4,7 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
-const { initializeDatabase, getPool, sql } = require('./database');
+const { initializeDatabase, getPool, closePool } = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -53,19 +53,20 @@ app.post('/api/messages', async (req, res) => {
         }
         
         const pool = await getPool();
-        const request = pool.request();
         
         // Insert the message
-        const result = await request
-            .input('name', sql.NVarChar(255), name.trim())
-            .input('message', sql.NVarChar(sql.MAX), message.trim())
-            .query(`
-                INSERT INTO messages (name, message) 
-                OUTPUT INSERTED.id, INSERTED.name, INSERTED.message, INSERTED.created_at
-                VALUES (@name, @message)
-            `);
+        const [result] = await pool.execute(
+            'INSERT INTO messages (name, message) VALUES (?, ?)',
+            [name.trim(), message.trim()]
+        );
         
-        const insertedMessage = result.recordset[0];
+        // Get the inserted message
+        const [rows] = await pool.execute(
+            'SELECT id, name, message, created_at FROM messages WHERE id = ?',
+            [result.insertId]
+        );
+        
+        const insertedMessage = rows[0];
         
         res.status(201).json({
             success: true,
@@ -90,9 +91,8 @@ app.post('/api/messages', async (req, res) => {
 app.get('/api/messages', async (req, res) => {
     try {
         const pool = await getPool();
-        const request = pool.request();
         
-        const result = await request.query(`
+        const [rows] = await pool.execute(`
             SELECT id, name, message, created_at 
             FROM messages 
             ORDER BY created_at DESC
@@ -100,7 +100,7 @@ app.get('/api/messages', async (req, res) => {
         
         res.json({
             success: true,
-            data: result.recordset
+            data: rows
         });
         
     } catch (error) {
@@ -115,13 +115,12 @@ app.get('/api/messages', async (req, res) => {
 app.get('/api/messages/count', async (req, res) => {
     try {
         const pool = await getPool();
-        const request = pool.request();
         
-        const result = await request.query('SELECT COUNT(*) as count FROM messages');
+        const [rows] = await pool.execute('SELECT COUNT(*) as count FROM messages');
         
         res.json({
             success: true,
-            count: result.recordset[0].count
+            count: rows[0].count
         });
         
     } catch (error) {
@@ -170,11 +169,13 @@ const startServer = async () => {
 // Handle graceful shutdown
 process.on('SIGTERM', async () => {
     console.log('SIGTERM received, shutting down gracefully...');
+    await closePool();
     process.exit(0);
 });
 
 process.on('SIGINT', async () => {
     console.log('SIGINT received, shutting down gracefully...');
+    await closePool();
     process.exit(0);
 });
 

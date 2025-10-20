@@ -1,35 +1,37 @@
-const sql = require('mssql');
+const mysql = require('mysql2/promise');
 
 // Database configuration using environment variables
 const config = {
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT || 3306,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    server: process.env.DB_SERVER,
     database: process.env.DB_NAME,
-    options: {
-        encrypt: true, // Use encryption for Azure SQL
-        enableArithAbort: true,
-        trustServerCertificate: false
-    },
-    pool: {
-        max: 10,
-        min: 0,
-        idleTimeoutMillis: 30000
-    }
+    ssl: process.env.DB_SSL === 'true' ? {
+        rejectUnauthorized: false
+    } : false,
+    connectionLimit: 10,
+    acquireTimeout: 60000,
+    timeout: 60000,
+    reconnect: true
 };
 
-let poolPromise;
+let pool;
 
 const initializeDatabase = async () => {
     try {
         // Create connection pool
-        poolPromise = new sql.ConnectionPool(config).connect();
-        const pool = await poolPromise;
+        pool = mysql.createPool(config);
         
-        console.log('Connected to Azure SQL Database');
+        console.log('Connected to MySQL Database');
+        
+        // Test the connection
+        const connection = await pool.getConnection();
+        await connection.ping();
+        connection.release();
         
         // Create the messages table if it doesn't exist
-        await createMessagesTable(pool);
+        await createMessagesTable();
         
         return pool;
     } catch (error) {
@@ -38,17 +40,16 @@ const initializeDatabase = async () => {
     }
 };
 
-const createMessagesTable = async (pool) => {
+const createMessagesTable = async () => {
     try {
-        const request = pool.request();
-        await request.query(`
-            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='messages' AND xtype='U')
-            CREATE TABLE messages (
-                id INT IDENTITY(1,1) PRIMARY KEY,
-                name NVARCHAR(255) NOT NULL,
-                message NVARCHAR(MAX) NOT NULL,
-                created_at DATETIME2 DEFAULT GETDATE()
-            )
+        await pool.execute(`
+            CREATE TABLE IF NOT EXISTS messages (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                message TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_created_at (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         `);
         console.log('Messages table ready');
     } catch (error) {
@@ -58,14 +59,21 @@ const createMessagesTable = async (pool) => {
 };
 
 const getPool = () => {
-    if (!poolPromise) {
+    if (!pool) {
         throw new Error('Database not initialized. Call initializeDatabase() first.');
     }
-    return poolPromise;
+    return pool;
+};
+
+const closePool = async () => {
+    if (pool) {
+        await pool.end();
+        console.log('Database connection pool closed');
+    }
 };
 
 module.exports = {
     initializeDatabase,
     getPool,
-    sql
+    closePool
 };
