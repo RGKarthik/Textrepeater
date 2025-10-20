@@ -3,7 +3,7 @@ const mysql = require('mysql2/promise');
 // Database configuration using environment variables
 const poolConfig = {
     host: process.env.DB_HOST,
-    port: process.env.DB_PORT || 3306,
+    port: Number(process.env.DB_PORT || 3306),
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
@@ -18,6 +18,7 @@ const poolConfig = {
 };
 
 let pool;
+let poolInitialized = false; // Track whether the pool is ready for use
 
 const initializeDatabase = async () => {
     try {
@@ -25,8 +26,16 @@ const initializeDatabase = async () => {
         if (!process.env.DB_HOST) {
             console.log('No database configuration found. Skipping database initialization.');
             console.log('This is normal for Azure deployment before environment variables are set.');
+            poolInitialized = false;
+            pool = null;
             return null;
         }
+
+        // Reset pool state before (re)initializing
+        if (pool) {
+            await pool.end();
+        }
+        poolInitialized = false;
 
         // Create connection pool
         pool = mysql.createPool(poolConfig);
@@ -39,6 +48,7 @@ const initializeDatabase = async () => {
         connection.release();
         
         console.log('Connected to MySQL Database successfully');
+        poolInitialized = true;
         
         // Create the messages table if it doesn't exist
         await createMessagesTable();
@@ -53,6 +63,8 @@ const initializeDatabase = async () => {
             database: process.env.DB_NAME,
             ssl: process.env.DB_SSL === 'true'
         });
+        poolInitialized = false;
+        pool = null;
         throw error;
     }
 };
@@ -76,8 +88,8 @@ const createMessagesTable = async () => {
 };
 
 const getPool = () => {
-    if (!pool) {
-        throw new Error('Database not initialized. Call initializeDatabase() first.');
+    if (!pool || !poolInitialized) {
+        return null;
     }
     return pool;
 };
@@ -87,6 +99,8 @@ const closePool = async () => {
         await pool.end();
         console.log('Database connection pool closed');
     }
+    pool = null;
+    poolInitialized = false;
 };
 
 module.exports = {

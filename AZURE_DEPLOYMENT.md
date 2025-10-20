@@ -1,6 +1,6 @@
 # Azure Deployment Guide for Text Repeater
 
-This guide will help you deploy the Text Repeater application to Azure Web App with Azure SQL Database.
+This guide walks through deploying the Text Repeater application to Azure App Service (Web App) backed by **Azure Database for MySQL**. The same steps apply if you are using another managed MySQL service; just adjust the connection settings accordingly.
 
 ## Prerequisites
 
@@ -8,52 +8,67 @@ This guide will help you deploy the Text Repeater application to Azure Web App w
 - Azure CLI installed (optional, can use Azure Portal)
 - Git installed
 
-## Step 1: Create Azure SQL Database
+## Step 1: Provision Azure Database for MySQL
 
-### Using Azure Portal:
+You can follow either the Azure Portal steps or the Azure CLI commands below. The examples use **Flexible Server** (recommended), but Single Server works too.
 
-1. Go to [Azure Portal](https://portal.azure.com)
-2. Click "Create a resource" → "Databases" → "SQL Database"
-3. Fill in the details:
-   - **Database name**: `textrepeater-db`
-   - **Server**: Create new server
-   - **Server name**: `textrepeater-sql-server` (must be globally unique)
-   - **Server admin login**: `sqladmin`
-   - **Password**: Choose a strong password
-   - **Location**: Choose your preferred region
-   - **Pricing tier**: Basic (sufficient for this app)
+### Using Azure Portal
 
-4. Click "Review + create" and then "Create"
+1. Open [Azure Portal](https://portal.azure.com).
+2. Create (or select) a resource group, e.g., `textrepeater-rg`.
+3. Click "Create a resource" → "Databases" → "Azure Database for MySQL Flexible Server".
+4. Fill in these values (adjust as needed):
+   - **Server name**: `textrepeater-mysql` (must be globally unique)
+   - **Region**: Same region you plan to host the Web App
+   - **Workload type**: Development
+   - **Compute + storage**: Burstable B1ms (enough for this demo)
+   - **Authentication**: Password authentication (or AAD if preferred)
+   - **Admin username**: `mysqladmin`
+   - **Password**: `YourSecurePassword123!`
+   - **Allow public access**: Enabled (you can tighten later)
+   - **Firewall rules**: Allow current client IP **and** "Allow access to Azure services" = On
+5. After the server is created, add a database named `textrepeater_db` from the "Databases" blade.
 
-### Using Azure CLI:
+### Using Azure CLI
 
 ```bash
 # Create resource group
 az group create --name textrepeater-rg --location "East US"
 
-# Create SQL server
-az sql server create \
-  --name textrepeater-sql-server \
+# Create MySQL flexible server (basic dev SKU)
+az mysql flexible-server create \
+  --name textrepeater-mysql \
   --resource-group textrepeater-rg \
   --location "East US" \
-  --admin-user sqladmin \
-  --admin-password YourSecurePassword123!
+  --sku-name Standard_B1ms \
+  --tier Burstable \
+  --version 8.0 \
+  --admin-user mysqladmin \
+  --admin-password YourSecurePassword123! \
+  --yes
 
-# Create SQL database
-az sql db create \
+# Allow Azure services to connect to the server
+az mysql flexible-server firewall-rule create \
   --resource-group textrepeater-rg \
-  --server textrepeater-sql-server \
-  --name textrepeater-db \
-  --service-objective Basic
+  --name textrepeater-mysql \
+  --rule-name AllowAzure \
+  --start-ip-address 0.0.0.0 \
+  --end-ip-address 0.0.0.0
+
+# Create the application database
+az mysql flexible-server db create \
+  --resource-group textrepeater-rg \
+  --server-name textrepeater-mysql \
+  --database-name textrepeater_db
 ```
 
-## Step 2: Configure Database Firewall
+## Step 2: Configure Database Firewall / Network Access
 
-1. In Azure Portal, go to your SQL server
-2. Click "Firewalls and virtual networks"
-3. Set "Allow Azure services and resources to access this server" to **YES**
-4. Add your client IP address for management access
-5. Click "Save"
+1. In Azure Portal, open the MySQL server you created.
+2. Under **Networking**, ensure **Allow public access** is enabled (for private access, integrate your Web App with the same VNet).
+3. Toggle **Allow access to Azure services** to **Yes** so App Service can connect.
+4. Add your current public IP so you can test connections from your laptop if needed.
+5. Save the changes. Firewall updates can take a minute to apply.
 
 ## Step 3: Create Azure Web App
 
@@ -91,23 +106,26 @@ az webapp create \
 
 ## Step 4: Configure Application Settings
 
-### Using Azure Portal:
+### Using Azure Portal
 
-1. Go to your Web App in Azure Portal
-2. Click "Configuration" → "Application settings"
-3. Add the following settings (click "New application setting" for each):
+1. Open your Web App → **Configuration** → **Application settings**.
+2. Add (or update) these key/value pairs:
 
 ```
 NODE_ENV = production
-DB_SERVER = textrepeater-sql-server.database.windows.net
-DB_NAME = textrepeater-db
-DB_USER = sqladmin
+DB_HOST = textrepeater-mysql.mysql.database.azure.com
+DB_PORT = 3306
+DB_NAME = textrepeater_db
+DB_USER = mysqladmin@textrepeater-mysql
 DB_PASSWORD = YourSecurePassword123!
+DB_SSL = true
+WEBSITE_NODE_DEFAULT_VERSION = 18.17.0
+SCM_DO_BUILD_DURING_DEPLOYMENT = true
 ```
 
-4. Click "Save"
+3. Click **Save** and allow the application to restart.
 
-### Using Azure CLI:
+### Using Azure CLI
 
 ```bash
 az webapp config appsettings set \
@@ -115,10 +133,14 @@ az webapp config appsettings set \
   --name textrepeater-app \
   --settings \
     NODE_ENV=production \
-    DB_SERVER=textrepeater-sql-server.database.windows.net \
-    DB_NAME=textrepeater-db \
-    DB_USER=sqladmin \
-    DB_PASSWORD=YourSecurePassword123!
+    DB_HOST=textrepeater-mysql.mysql.database.azure.com \
+    DB_PORT=3306 \
+    DB_NAME=textrepeater_db \
+    DB_USER=mysqladmin@textrepeater-mysql \
+    DB_PASSWORD=YourSecurePassword123! \
+    DB_SSL=true \
+    WEBSITE_NODE_DEFAULT_VERSION=18.17.0 \
+    SCM_DO_BUILD_DURING_DEPLOYMENT=true
 ```
 
 ## Step 5: Deploy the Application
@@ -168,6 +190,7 @@ az webapp deployment source config-zip \
 2. The application should load and display the form
 3. Test submitting a message
 4. Verify that messages are saved and displayed
+5. (Optional) Visit `/api/test-db` and `/health` to confirm database connectivity and overall health
 
 ## Step 7: Monitor and Troubleshoot
 
@@ -211,9 +234,9 @@ az webapp log tail \
 
 ## Cost Optimization
 
-- **Free Tier**: F1 App Service + Basic SQL Database costs ~$5/month
-- **Production**: B1 App Service + Standard SQL Database costs ~$25-50/month
-- **Enterprise**: Consider reserved instances for cost savings
+- **Dev/Test**: F1 App Service + B1ms MySQL Flexible Server ≈ $12–15/month
+- **Production**: B1 App Service + GP_S_2 MySQL Flexible Server ≈ $60+/month
+- **Enterprise**: Consider reserved compute and Azure Hybrid Benefit to reduce spend
 
 ## Support
 
