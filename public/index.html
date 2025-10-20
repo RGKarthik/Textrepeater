@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Repeater</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .form-section {
+            padding: 40px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+            font-family: inherit;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        textarea {
+            height: 120px;
+            resize: vertical;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            font-weight: 600;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 172, 254, 0.3);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .messages-section {
+            padding: 40px;
+        }
+
+        .messages-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .messages-header h2 {
+            color: #333;
+            font-size: 1.8rem;
+        }
+
+        .refresh-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            background: #218838;
+        }
+
+        .message-count {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .messages-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .message-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: transform 0.2s ease;
+        }
+
+        .message-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .message-name {
+            font-weight: 600;
+            color: #4facfe;
+            font-size: 1.1rem;
+        }
+
+        .message-date {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .message-content {
+            color: #333;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .form-section, .messages-section {
+                padding: 20px;
+            }
+
+            .messages-header {
+                flex-direction: column;
+                gap: 15px;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Text Repeater</h1>
+            <p>Submit your message and see all stored messages below</p>
+        </div>
+
+        <div class="form-section">
+            <form id="messageForm">
+                <div class="form-group">
+                    <label for="name">Name:</label>
+                    <input type="text" id="name" name="name" required maxlength="255" placeholder="Enter your name">
+                </div>
+                
+                <div class="form-group">
+                    <label for="message">Message:</label>
+                    <textarea id="message" name="message" required placeholder="Enter your message here..."></textarea>
+                </div>
+                
+                <button type="submit" class="submit-btn" id="submitBtn">Submit Message</button>
+            </form>
+        </div>
+
+        <div class="messages-section">
+            <div class="messages-header">
+                <h2>All Messages</h2>
+                <button class="refresh-btn" id="refreshBtn">Refresh</button>
+            </div>
+            
+            <div id="messageCount" class="message-count" style="display: none;"></div>
+            <div id="messagesContainer" class="messages-list"></div>
+        </div>
+    </div>
+
+    <script>
+        class TextRepeater {
+            constructor() {
+                this.form = document.getElementById('messageForm');
+                this.nameInput = document.getElementById('name');
+                this.messageInput = document.getElementById('message');
+                this.submitBtn = document.getElementById('submitBtn');
+                this.refreshBtn = document.getElementById('refreshBtn');
+                this.messagesContainer = document.getElementById('messagesContainer');
+                this.messageCount = document.getElementById('messageCount');
+                
+                this.init();
+            }
+
+            init() {
+                this.form.addEventListener('submit', this.handleSubmit.bind(this));
+                this.refreshBtn.addEventListener('click', this.loadMessages.bind(this));
+                
+                // Load messages on page load
+                this.loadMessages();
+            }
+
+            async handleSubmit(e) {
+                e.preventDefault();
+                
+                const name = this.nameInput.value.trim();
+                const message = this.messageInput.value.trim();
+                
+                if (!name || !message) {
+                    this.showError('Both name and message are required');
+                    return;
+                }
+
+                this.setLoading(true);
+                
+                try {
+                    const response = await fetch('/api/messages', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ name, message })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        this.showSuccess('Message saved successfully!');
+                        this.form.reset();
+                        this.loadMessages(); // Refresh the messages list
+                    } else {
+                        this.showError(data.error || 'Failed to save message');
+                    }
+                } catch (error) {
+                    this.showError('Network error. Please try again.');
+                    console.error('Error submitting message:', error);
+                } finally {
+                    this.setLoading(false);
+                }
+            }
+
+            async loadMessages() {
+                this.messagesContainer.innerHTML = '<div class="loading">Loading messages...</div>';
+                
+                try {
+                    const [messagesResponse, countResponse] = await Promise.all([
+                        fetch('/api/messages'),
+                        fetch('/api/messages/count')
+                    ]);
+
+                    const messagesData = await messagesResponse.json();
+                    const countData = await countResponse.json();
+
+                    if (messagesResponse.ok && messagesData.success) {
+                        this.displayMessages(messagesData.data);
+                        
+                        if (countResponse.ok && countData.success) {
+                            this.displayMessageCount(countData.count);
+                        }
+                    } else {
+                        this.showError('Failed to load messages');
+                    }
+                } catch (error) {
+                    this.messagesContainer.innerHTML = '<div class="error">Network error. Failed to load messages.</div>';
+                    console.error('Error loading messages:', error);
+                }
+            }
+
+            displayMessages(messages) {
+                if (messages.length === 0) {
+                    this.messagesContainer.innerHTML = `
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20 6L9 17l-5-5"/>
+                            </svg>
+                            <h3>No messages yet</h3>
+                            <p>Be the first to submit a message!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const messagesHTML = messages.map(msg => `
+                    <div class="message-item">
+                        <div class="message-header">
+                            <span class="message-name">${this.escapeHtml(msg.name)}</span>
+                            <span class="message-date">${this.formatDate(msg.created_at)}</span>
+                        </div>
+                        <div class="message-content">${this.escapeHtml(msg.message)}</div>
+                    </div>
+                `).join('');
+
+                this.messagesContainer.innerHTML = messagesHTML;
+            }
+
+            displayMessageCount(count) {
+                this.messageCount.textContent = `Total messages: ${count}`;
+                this.messageCount.style.display = 'block';
+            }
+
+            formatDate(dateString) {
+                const date = new Date(dateString);
+                return date.toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            setLoading(isLoading) {
+                this.submitBtn.disabled = isLoading;
+                this.submitBtn.textContent = isLoading ? 'Submitting...' : 'Submit Message';
+            }
+
+            showError(message) {
+                this.showNotification(message, 'error');
+            }
+
+            showSuccess(message) {
+                this.showNotification(message, 'success');
+            }
+
+            showNotification(message, type) {
+                // Remove existing notifications
+                const existing = document.querySelector('.error, .success');
+                if (existing) {
+                    existing.remove();
+                }
+
+                const notification = document.createElement('div');
+                notification.className = type;
+                notification.textContent = message;
+                
+                this.form.parentNode.insertBefore(notification, this.form);
+                
+                // Auto-remove after 5 seconds
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 5000);
+            }
+        }
+
+        // Initialize the app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new TextRepeater();
+        });
+    </script>
+</body>
+</html>
