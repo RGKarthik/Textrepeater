@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Text Repeater</title>
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    <div class="container">
+        <h1>Text Repeater Guestbook</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul class="flashes">
+            {% for category, msg in messages %}
+                <li class="flash {{ category }}">{{ msg }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+        {% endwith %}
+        <form action="/submit" method="POST" class="message-form">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" maxlength="100" required />
+
+            <label for="message">Message</label>
+            <textarea id="message" name="message" rows="3" required></textarea>
+
+            <button type="submit">Submit</button>
+        </form>
+
+        <h2>Messages</h2>
+        <div class="messages">
+            {% if messages|length == 0 %}
+                <p>No messages yet. Be the first!</p>
+            {% else %}
+                {% for m in messages %}
+                <div class="message-item">
+                    <div class="meta">
+                        <span class="author">{{ m.name }}</span>
+                        <span class="timestamp">{{ m.created_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC</span>
+                    </div>
+                    <div class="body">{{ m.message | e }}</div>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

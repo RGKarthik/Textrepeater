@@ -1,0 +1,31 @@
+version: '3.9'
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: textrepeater
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: app_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+  web:
+    build: .
+    command: python app.py
+    environment:
+      FLASK_SECRET_KEY: dev-secret-key-change
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: appuser
+      DB_PASSWORD: app_password
+      DB_NAME: textrepeater
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+volumes:
+  db_data:
