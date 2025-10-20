@@ -1,7 +1,7 @@
 const mysql = require('mysql2/promise');
 
 // Database configuration using environment variables
-const config = {
+const poolConfig = {
     host: process.env.DB_HOST,
     port: process.env.DB_PORT || 3306,
     user: process.env.DB_USER,
@@ -11,24 +11,34 @@ const config = {
         rejectUnauthorized: false
     } : false,
     connectionLimit: 10,
-    acquireTimeout: 60000,
-    timeout: 60000,
-    reconnect: true
+    queueLimit: 0,
+    charset: 'utf8mb4',
+    // Remove invalid options for mysql2
+    // acquireTimeout and reconnect are not valid for mysql2 connection pools
 };
 
 let pool;
 
 const initializeDatabase = async () => {
     try {
+        // Skip database initialization if no database configuration provided
+        if (!process.env.DB_HOST) {
+            console.log('No database configuration found. Skipping database initialization.');
+            console.log('This is normal for Azure deployment before environment variables are set.');
+            return null;
+        }
+
         // Create connection pool
-        pool = mysql.createPool(config);
+        pool = mysql.createPool(poolConfig);
         
-        console.log('Connected to MySQL Database');
+        console.log('Attempting to connect to MySQL Database...');
         
         // Test the connection
         const connection = await pool.getConnection();
         await connection.ping();
         connection.release();
+        
+        console.log('Connected to MySQL Database successfully');
         
         // Create the messages table if it doesn't exist
         await createMessagesTable();
@@ -36,6 +46,13 @@ const initializeDatabase = async () => {
         return pool;
     } catch (error) {
         console.error('Database connection failed:', error.message);
+        console.log('Database configuration:', {
+            host: process.env.DB_HOST,
+            port: process.env.DB_PORT || 3306,
+            user: process.env.DB_USER,
+            database: process.env.DB_NAME,
+            ssl: process.env.DB_SSL === 'true'
+        });
         throw error;
     }
 };
